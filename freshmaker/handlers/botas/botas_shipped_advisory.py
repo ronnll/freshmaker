@@ -132,7 +132,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         original_digests_by_nvr = {}
         original_nvrs_by_digest = {}
         for nvr in original_nvrs:
-            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
+            digest, _ = self._pyxis.get_manifestv2_digests_by_nvr(nvr)
             if digest:
                 original_digests_by_nvr[nvr] = digest
                 original_nvrs_by_digest[digest] = nvr
@@ -156,7 +156,7 @@ class HandleBotasAdvisory(ContainerBuildHandler):
             # Don't require that the manifest list digest be published in this case because
             # there's a delay from after an advisory is shipped and when the published repositories
             # entry is populated
-            digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr, must_be_published=False)
+            digest, _ = self._pyxis.get_manifestv2_digests_by_nvr(nvr, must_be_published=False)
             if digest:
                 rebuilt_digests_by_nvr[nvr] = digest
             else:
@@ -422,14 +422,14 @@ class HandleBotasAdvisory(ContainerBuildHandler):
         # fill 'append' and 'update' fields for bundles to rebuild
         for nvr, pullspecs in rebuild_nvr_to_pullspecs_map.items():
             self.log_debug("Getting the manifest list digest for %s", nvr)
-            bundle_digest = self._pyxis.get_manifest_list_digest_by_nvr(nvr)
-            if bundle_digest is not None:
-                self.log_debug("The manifest list digest for %s is %s", nvr, bundle_digest)
-                bundles = self._pyxis.get_bundles_by_digest(bundle_digest)
+            list_digest, v2_digest = self._pyxis.get_manifestv2_digests_by_nvr(nvr)
+            if list_digest is not None:
+                self.log_debug("The manifest list digest for %s is %s", nvr, list_digest)
+                bundles = self._pyxis.get_bundles_by_digest(list_digest, v2_digest)
                 if not bundles:
                     self.log_error(
                         "The manifest_list_digest %s is not available on the bundles API endpoint",
-                        bundle_digest,
+                        list_digest,
                     )
                     continue
                 temp_bundle = bundles[0]
