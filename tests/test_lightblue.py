@@ -3103,6 +3103,37 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
 
     assert image == latest_rhel7_image
 
+    latest_rhel7_image = ContainerImage.create(
+        {
+            "brew": {"build": "rhel-server-container-7.9-189"},
+            "content_sets": ["rhel-7-server-rpms"],
+            "repositories": [{"repository": "repo2"}],
+            "rpm_manifest": [
+                {
+                    "rpms": [
+                        {
+                            "name": "bash",
+                            "nvra": "bash-4.2.46-34.el7.x86_64",
+                            "srpm_name": "bash",
+                            "srpm_nevra": "bash-0:4.2.46-34.el7.src",
+                            "version": "4.2.46",
+                        }
+                    ]
+                }
+            ],
+        }
+    )
+
+    latest_rhel7_image.resolve = Mock()
+
+    mock_fci.side_effect = [[other_rhel7_image, latest_rhel7_image], [latest_rhel7_image]]
+    image_group_2 = "rhel-server-container-7.9-['repo']"
+    image_2 = lb.get_fixed_published_image(
+        "rhel-server-container", "7.9", image_group_2, rpm_nvrs, content_sets
+    )
+
+    assert image_2 == latest_rhel7_image
+
 
 @patch('os.path.exists', return_value=True)
 @patch('freshmaker.lightblue.LightBlue.find_container_images')
