@@ -32,7 +32,7 @@ import freshmaker
 from freshmaker import conf
 
 from freshmaker.lightblue import ContainerImage, ContainerRepository, ExtraRepoNotConfiguredError
-from freshmaker.lightblue import LightBlue, LightBlueRequestError, LightBlueSystemError
+from freshmaker.lightblue import LightBlue, LightBlueRequestError, LightBlueSystemError, ImageGroup
 from freshmaker.utils import sorted_by_nvr
 from tests.test_handler import MyHandler
 from tests import helpers
@@ -3092,7 +3092,9 @@ def test_get_fixed_published_image(mock_fci, mock_exists):
     other_rhel7_image.resolve = Mock()
     latest_rhel7_image.resolve = Mock()
     mock_fci.side_effect = [[other_rhel7_image, latest_rhel7_image], [latest_rhel7_image]]
-    image_group = "rhel-server-container-7.9-['repo']"
+    image = Mock(nvr="rhel-server-container-7.9-185")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
@@ -3175,7 +3177,9 @@ def test_get_fixed_published_image_diff_repo(mock_fci, mock_exists):
         }
     )
     mock_fci.return_value = [latest_rhel7_image]
-    image_group = "rhel-server-container-7.9-['repo']"
+    image = Mock(nvr="rhel-server-container-7.9-189")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
@@ -3198,7 +3202,9 @@ def test_get_fixed_published_image_missing_rpm(mock_fci, mock_exists):
         }
     )
     mock_fci.return_value = [latest_rhel7_image]
-    image_group = "rhel-server-container-7.9-['repo']"
+    image = Mock(nvr="rhel-server-container-7.9-189")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
@@ -3234,7 +3240,9 @@ def test_get_fixed_published_image_modularity_mismatch(mock_fci, mock_exists):
         }
     )
     mock_fci.return_value = [latest_rhel8_image]
-    image_group = "rhel-server-container-8.2-['repo']"
+    image = Mock(nvr="rhel-server-container-8.2-185")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el8"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
@@ -3270,7 +3278,9 @@ def test_get_fixed_published_image_rpm_too_old(mock_fci, mock_exists):
         }
     )
     mock_fci.return_value = [latest_rhel7_image]
-    image_group = "rhel-server-container-7.9-['repo']"
+    image = Mock(nvr="rhel-server-container-7.9-185")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
@@ -3308,7 +3318,9 @@ def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
     # Don't have `resolve` reach out over the network
     latest_rhel7_image.resolve = Mock()
     mock_fci.side_effect = [[latest_rhel7_image], []]
-    image_group = "rhel-server-container-7.9-['repo']"
+    image = Mock(nvr="rhel-server-container-7.9-185")
+    image.get_registry_repositories.return_value = [{"repository": "repo"}]
+    image_group = ImageGroup(image, Mock())
     rpm_nvrs = ["bash-4.2.46-34.el7"]
     content_sets = ["rhel-7-server-rpms"]
     lb = LightBlue("lb.domain.local", "/path/to/cert", "/path/to/key")
