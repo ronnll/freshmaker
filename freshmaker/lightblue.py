@@ -996,21 +996,28 @@ class LightBlue(object):
             name = koji.parse_NVR(rpm_nvr)["name"]
             rpm_name_to_nvrs.setdefault(name, []).append(rpm_nvr)
 
-        image_request = {
-            "objectType": "containerImage",
-            "query": {},   # set by _set_container_image_filters()
-            "projection": self._get_default_projection(
-                rpm_names=rpm_name_to_nvrs.keys(),
-                include_rpm_manifest=include_rpm_manifest)
-        }
-
-        request = self._set_container_image_filters(
-            image_request, content_sets, list(rpm_name_to_nvrs.keys()),
-            auto_rebuild_tags, published, list(repositories.keys()))
-
-        images = self.find_container_images(request)
+        rpm_names = [kobo.rpmlib.parse_nvr(nvr)["name"] for nvr in rpm_nvrs]
+        # images = self.pyxis.find_images_by_nvrs(nvrs, include_rpms=include_rpm_manifest)
+        images = self.pyxis.find_images_by_installed_rpms(rpm_name_to_nvrs.keys(), rpm_names, content_sets, repositories, published)
         if not images:
-            return images
+            return []
+
+        # Avoid maniuplating the images directly, use a copy instead
+        image_dicts = copy.deepcopy(images)
+        del images
+
+        for image in image_dicts:
+            # modify Pyxis image data to simulate the data structure returned from LightBlue
+            rpms = [rpm for rpm in image["edges"]["rpm_manifest"]["data"]["rpms"] if rpm["name"] in rpm_name_to_nvrs]
+            image["rpm_manifest"] = [{"rpms": rpms}]
+            del image["edges"]
+
+        # convert the dicts to list of ContainerImage
+        images = self._dicts_to_images(image_dicts)
+
+        # images = self.find_container_images(request)
+        # if not images:
+        #     return images
 
         # The image_request returns container images which are in the
         # right repository and are latest in *some* repository. But we need
@@ -1046,7 +1053,7 @@ class LightBlue(object):
 
                 # If a match was found, continue to the next image
                 break
-
+       # breakpoint()
         # Reassign the filtered values to `images`
         images = list(image_nvr_to_image.values())
         images = self.filter_out_images_with_higher_rpm_nvr(images, rpm_name_to_nvrs)
@@ -1873,3 +1880,4 @@ class LightBlue(object):
         image = images[0]
         image.resolve(self)
         return image
+

@@ -19,7 +19,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+from gql import Client
+from gql.dsl import DSLSchema
+from graphql import build_ast_schema, parse
 
+from freshmaker.pyxis_gql import PyxisGQL
 import copy
 import json
 import io
@@ -1306,9 +1310,78 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             self.fake_repositories_with_content_sets}
         self.assertEqual(ret, expected_ret)
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @mock.patch('freshmaker.pyxis_gql.Client')
+    #@patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
-    def test_find_images_with_included_srpm(self, exists, cont_images):
+    def test_find_images_with_included_srpm(self, exists, mocked_client):
+    #def test_find_images_with_included_srpm(self, exists, cont_images, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "parent-1-3"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,
+    }}        
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1317,11 +1390,13 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
         # Add a duplicate simulating a multi-arch image
-        self.fake_container_images.append(self.fake_container_images[1])
-        cont_images.return_value = self.fake_container_images
+        #self.fake_container_images.append(self.fake_container_images[1])
+        #cont_images.return_value = self.fake_container_images
+        #print(555555, vars(cont_images))
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
-
+            ["dummy-content-set-1"], ["openssl-1.2.4-2.amd64"], repositories)
+            #["dummy-content-set-1"], ["openssl-1.2.4-2.module+el8.0.0+3248+9d514f3b"], repositories)
+        print(7777, ret)
         expected_image_request = {
             "objectType": "containerImage",
             "query": {
@@ -1348,6 +1423,7 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # auto_rebuild_tags is a set in the source code. When generate
         # criteria for tags, the order is not guaranteed. Following lines sort
         # the tags criteria in order to assert with expected value.
+        print(88888, expected_image_request)
         request_arg = cont_images.call_args[0][0]
         request_arg['query']['$and'][1]["values"].sort()
         request_arg['query']['$and'][3]["values"].sort()
@@ -1359,11 +1435,77 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         # in repository "product/repo1".
         self.assertEqual(ret, [cont_images.return_value[1]])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     def test_images_with_included_srpm_floating_tag(
-            self, exists, cont_images):
-
+            self, exists, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "parent-1-3"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,
+    }}
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1371,20 +1513,83 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        cont_images.return_value = (
-            self.fake_container_images +
-            self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
-
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.4-2"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
-            ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
+            ['parent-1-3', 'parent-1-2'])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+
+    @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     def test_images_with_included_newer_srpm(
-            self, exists, cont_images):
+            self, exists, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "parent-1-3"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,}}
 
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
@@ -1393,18 +1598,80 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        cont_images.return_value = (
-            self.fake_container_images +
-            self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_rpms(
             ["content-set-1", "content-set-2"], ["openssl-1.2.3-1"], repositories)
         self.assertEqual(ret, [])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     def test_images_with_included_newer_srpm_multilpe_nvrs(
-            self, exists, cont_images):
-
+            self, exists, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "parent-1-3"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,}}        
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -1412,28 +1679,25 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        cont_images.return_value = (
-            self.fake_container_images +
-            self.fake_container_images_floating_tag)
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1", "dummy-content-set-2"],
-            ["openssl-1.2.3-1", "openssl-1.2.3-50"], repositories)
+            ["dummy-content-set-1"], ["openssl-1.2.4-2"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
-            ['package-name-2-4-12.10', 'package-name-3-4-12.10'])
+            ['parent-1-3', 'parent-1-2']) 
 
     def _filter_fnc(self, image):
         return image.nvr.startswith("filtered_")
 
+    @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.pyxis_gql.Client')
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('freshmaker.kojiservice.KojiService.get_build')
     @patch('freshmaker.kojiservice.KojiService.get_task_request')
     @patch('os.path.exists')
     def test_images_with_content_set_packages(
-        self, exists, koji_task_request, koji_get_build, cont_images, gql_client
+        self, exists, koji_task_request, koji_get_build, cont_images, gql_client, mocked_client
     ):
-
+        {'find_images': {'data': [{'architecture': 'amd64', 'brew': {'build': 'foobar-container-v0.13.0-12.1582340001'}, 'content_sets': ['rhel-8-for-x86_64-baseos-rpms'], 'edges': {'rpm_manifest': {'data': {'rpms': [{'name': 'foo', 'nvra': 'foo-10-123.el8.noarch', 'srpm_name': 'foo', 'srpm_nevra': 'foo-10-123.el8.src'}, {'name': 'bar', 'nvra': 'bar-20-220.el8.noarch', 'srpm_name': 'bar', 'srpm_nevra': 'bar-20-220.el8.src'}]}}}, 'parent_brew_build': 'ubi8-minimal-container-8.6-100.1582220001', 'parsed_data': {}, 'repositories': [{'published': True, 'registry': 'registry.example.com', 'repository': 'dummy/foobar-rhel8', 'tags': [{'name': 'v0.13'}]}]}, {'architecture': 'arm64', 'brew': {'build': 'foobar-container-v0.13.0-12.1582340001'}, 'content_sets': ['rhel-8-for-aarch64-baseos-rpms'], 'edges': {'rpm_manifest': {'data': {'rpms': [{'name': 'foo', 'nvra': 'foo-10-123.el8.noarch', 'srpm_name': 'foo', 'srpm_nevra': 'foo-10-123.el8.src'}, {'name': 'bar', 'nvra': 'bar-20-220.el8.noarch', 'srpm_name': 'bar', 'srpm_nevra': 'bar-20-220.el8.src'}]}}}, 'parent_brew_build': 'ubi8-minimal-container-8.6-100.1582220001', 'parsed_data': {}, 'repositories': [{'published': True, 'registry': 'registry.example.com', 'repository': 'dummy/foobar-rhel8', 'tags': [{'name': 'v0.13'}]}]}], 'error': None, 'page': 0, 'page_size': 250, 'total': 2}}
         exists.return_value = True
         gql_client.return_value.execute.return_value = self.fake_pyxis_find_repos
         # "filtered_x-1-23" image will be filtered by filter_fnc.
@@ -2361,11 +2625,77 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
             ["bar-content-set-ppc64le", "bar-content-set-x86_64"]
         )
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     def test_images_with_modular_container_image(
-            self, exists, cont_images):
-
+            self, exists, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "parent-1-3"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,
+    }}
         exists.return_value = True
         lb = LightBlue(server_url=self.fake_server_url,
                        cert=self.fake_cert_file,
@@ -2373,24 +2703,89 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        cont_images.return_value = (
-            self.fake_images_with_modules)
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b.src"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.amd64"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
-            ["package-name-3-4-12.10"])
+            ['parent-1-3', 'parent-1-2'])
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2.el8.0.0+3248+9d514f3b.src"], repositories)
+            ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
             [])
 
-    @patch('freshmaker.lightblue.LightBlue.find_container_images')
+    @mock.patch('freshmaker.pyxis_gql.Client')
     @patch('os.path.exists')
     def test_filter_out_by_content_sets(
-            self, exists, cont_images):
-
+            self, exists, mocked_client):
+        mocked_client.return_value.execute.return_value = {
+        "find_images": {
+            "data": [
+                {
+                    "architecture": "amd64",
+                    "brew": {"build": "parent-1-2"},
+                    "content_sets": ["dummy-content-set-1"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+                {
+                    "architecture": "arm64",
+                    "brew": {"build": "foobar-container-v0.13.0-12.1582340001"},
+                    "content_sets": ["dummy-content-set-2"],
+                    "edges": {
+                        "rpm_manifest": {
+                            "data": {
+                                "rpms": [
+                                    {
+                                        "name": "openssl",
+                                        "nvra": "openssl-1.2.3-2.amd64",
+                                        "srpm_name": "openssl",
+                                        "srpm_nevra": "openssl-1.2.3-2.amd64",
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                    "parent_brew_build": "ubi8-minimal-container-8.6-100.1582220001",
+                    "parsed_data": {},
+                    "repositories": [
+                        {
+                            "published": True,
+                            "registry": "registry.example.com",
+                            "repository": "product/repo1",
+                            "tags": [{"name": "latest"}],
+                            }
+                        ],
+                    },
+        ],
+        "error": None,
+        "page": 0,
+        "page_size": 250,
+        "total": 2,
+    }
+}        
         repos = [{
             "registry": "registry.example.com",
             "repository": "product/repo1", "published": True,
@@ -2402,22 +2797,12 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
         repositories = {
             repo["repository"]: repo for repo in
             self.fake_repositories_with_content_sets}
-        parent = ContainerImage.create({
-            "brew": {"build": "parent-1-2"}, "repositories": repos,
-            "content_sets": ["dummy-content-set-1"]})
-        latest_parent = ContainerImage.create({
-            "brew": {"build": "parent-1-3"}, "repositories": repos,
-            "content_sets": ["dummy-content-set-1"]})
-        older_parent = ContainerImage.create({
-            "brew": {"build": "parent-1-1"}, "repositories": repos,
-            "content_sets": ["dummy-content-set-2"]})
-        cont_images.return_value = [parent, latest_parent, older_parent]
 
         ret = lb.find_images_with_included_rpms(
-            ["dummy-content-set-1"], ["openssl-1.2.3-2.module+el8.0.0+3248+9d514f3b"], repositories)
+            ["dummy-content-set-1"], ["openssl-1.2.4-2"], repositories)
         self.assertEqual(
             [image.nvr for image in ret],
-            ["parent-1-2", "parent-1-3"])
+            ["parent-1-2"])
 
     @patch('freshmaker.lightblue.LightBlue.find_container_images')
     @patch('os.path.exists')
@@ -2461,7 +2846,6 @@ class TestQueryEntityFromLightBlue(helpers.FreshmakerTestCase):
 
         ret = lb.find_images_with_included_rpms(
             ["dummy-content-set-1", "dummy-content-set-2"], ["openssl-1.2.3-2"], repositories)
-
         self.assertEqual(ret, [find_images.return_value[1], find_images.return_value[-1]])
 
         # again, but this time we have build registries set
@@ -3386,3 +3770,4 @@ def test_get_fixed_published_image_not_found_by_nvr(mock_fci, mock_exists):
     )
 
     assert image is None
+
